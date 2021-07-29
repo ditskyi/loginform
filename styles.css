@@ -31,7 +31,7 @@ input {
 input {
     width: 25%;
     padding: 12px;
-    border: 1px solid #ccc;
+    border: 1px solid rgb(204, 204, 204);
     border-radius: 4px;
     box-sizing: border-box;
     margin-top: 6px;
@@ -40,7 +40,7 @@ input {
 
 input[type=submit] {
     background-color: #000000;
-    border: 2px solid white;
+    border: 2px solid rgb(255, 255, 255);
     color: white;
     padding: 8px 25px;
     text-decoration: none;
@@ -55,3 +55,8 @@ span {
     font-size: 20px;
     font-weight: 700;
 }
+
+.click {
+    border: 1px solid #39c; /* Рамка при получении фокуса */
+    width: 80%; /* Ширина поля */
+   }
