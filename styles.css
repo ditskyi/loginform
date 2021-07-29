@@ -1,0 +1,57 @@
+.root {
+    width: 1536px;
+    height: 960px;
+    margin: 0px;
+    padding: 0px;
+    background-color: #f4feff;
+    background: url(./img/photo-back.jpeg) 100% 100% no-repeat;
+    background-size: cover;
+    font-family: 'Noto Sans KR', sans-serif;
+    color: rgb(0, 0, 0);
+    
+}
+
+input {
+  outline: none;
+  border: none;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  margin: 0;
+  padding: 250px 55px 33px;
+  box-sizing: border-box;
+  overflow: hidden;
+ }
+
+input {
+    width: 25%;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+    margin-top: 6px;
+    margin-bottom: 16px;
+  }
+
+input[type=submit] {
+    background-color: #000000;
+    border: 2px solid white;
+    color: white;
+    padding: 8px 25px;
+    text-decoration: none;
+    cursor: pointer;
+    margin-top: 30px;
+}
+span {
+    font-size: 12px;
+    font-weight: 300;
+}
+.span {
+    font-size: 20px;
+    font-weight: 700;
+}
