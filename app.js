@@ -1,92 +1,179 @@
-const doc = document;
-  const elem = doc.getElementById('root');
-
-  const form = doc.createElement('form');
-  form.className = "form";
-  form.id = "genform";
-  form.action = "";
-  form.method = "post";
-  elem.append(form);
-
-  const span = doc.createElement('span');
-  span.className = "span";
-  span.innerHTML = "Welcome";
-  form.prepend(span);
-  
-  const inputM = doc.createElement('input');
-  inputM.className = "emailId";
-  inputM.type = "text";
-  inputM.placeholder = "Email";
-  inputM.title = "Fill the Email please!";
-  span.after(inputM);
-  
-  const inputP = doc.createElement('input');
-  inputP.className = "pas";
-  inputP.type = "password";
-  inputP.placeholder = "Password";
-  inputP.title = "Must contain at least one lowercase letter, one uppercase letter, one numeric digit, and one special character"
-  inputP.value = "";
-  inputP.autocomplete = "current-password";
-  inputM.after(inputP);
-
-  const btn = doc.createElement('button');
-  btn.className = "btn";
-  btn.innerHTML = "Login";
-  btn.type = "submit";
-  btn.id = "btn";
-  btn.disabled = false;
-  inputP.after(btn);
-
-  const message = doc.createElement('label');
-  message.className = "message";
-  message.style.color = "red";
-  btn.before(message); 
-
-form.addEventListener("submit", verifyPassword);
-form.addEventListener("click", onClick);
-
-function verifyPassword(event) {  
-    //check empty password field 
-    event.preventDefault(); 
-    if (inputP.value == "") {  
-       message.innerHTML = "**Fill the password please!";
-       inputP.style.boxShadow = "0 0 2px 1px red";
-       return false;  
-    } 
-     
-   //minimum password length validation  
-    if(inputP.value.length < 8) {
-       message.innerHTML = "**Password length must be at least 8 characters"; 
-       inputP.style.boxShadow = "0 0 2px 1px red";
-       return false;  
-    }  
+  (function () {
+    const rootElement = document.getElementById('root');
+    const authForm = initializeAuthForm();
     
-    // 8 to 15 characters which contain at least one lowercase letter, one uppercase letter, one numeric digit, and one special character
-    let decimal = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[^a-zA-Z0-9])(?!.*\s).{8,15}$/;
-    if (!inputP.value.match(decimal)) {
-        message.innerHTML = "**Fill the right password please!";
-        inputP.style.boxShadow = "0 0 2px 1px red";
-        return false;
-     }
-    //  else {
-    //     inputP.style.boxShadow = "0 0 2px 1px green";
+    return rootElement.append(authForm);
+  })();
+  
+  function initializeAuthForm () {
+    const form = createForm ("auth");
+    const inputLogin = createInput ("login", "email", "Fill the e-mail please!");
+    const inputPassword = createInput ("password", "password", "Must contain at least one lowercase letter, one uppercase letter, one numeric digit, and one special character");
+    const title = createTitle ("Welcome");
+    const button = createButton ("button", "submit", "Login");
+    const errorValidationEmail = createLabel ("errorValidEmail");
+    const errorValidationPassword = createLabel ("errorValidPassword");
+
+    form.addEventListener('submit', submitFormHandler);
+    inputPassword.addEventListener('input', () => {
+        button.disabled = !validatePassword(inputPassword.value)
+    });
+    inputLogin.addEventListener("input", () => {
+        button.disabled = !validateEmail(inputLogin.value)
+    });
+
+  
+    //создать с помощью append форму в правильном порядке 
+    form.append(title);
+    form.append(inputLogin);
+    form.append(errorValidationEmail);
+    form.append(inputPassword);
+    form.append(errorValidationPassword);
+    form.append(button);
+  return form;
+    }
+  
+    function submitFormHandler (event) {
+        event.preventDefault(); 
+        const inputPassword = document.getElementById('password');
+        const inputLogin = document.getElementById('login');
+        const password = inputPassword.value;
+        const email = inputLogin.value;
+        authWithEmailAndPassword(email, password)
+        .then (token => {
+            
+        })
+
+        // if (validatePassword(inputPassword.value) && validateEmail(inputLogin.value)) {
+
+        //     const guest = {
+        //         email: inputLogin.value.trim(),
+        //         password: inputPassword.value.trim(),
+        //         date: new Date().toJSON()
+        //     }
+            
+        //     button.disabled = true;
+        //     // Async request to server to save guest
+        //     console.log("Guest", guest)
+
+        //     inputLogin.value = "";
+        //     inputPassword.value = "";
+        //     button.disabled = false;
+
+
     // }
-    //maximum length of password validation  
-    if(inputP.value.length > 15) {  
-        message.innerHTML = "**Password length must not exceed 15 characters";  
-        inputP.style.boxShadow = "0 0 2px 1px red";
-       return false;  
-    } else {  
-        inputP.style.boxShadow = "0 0 2px 1px green";
-        // alert("Password is correct");  
+
+    }
+
+    function authWithEmailAndPassword (email, password) {
+        const apiKey = "AIzaSyB2Ksu_mphl7GoWF9zCwGVkSaVCrTTknCk"
+ return fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`, {
+     method: 'POST',
+     body: JSON.stringify({
+         email, password,
+         returnSecureToken: true 
+     }),
+      headers: {
+          'Content-Type': 'application/json'
+      }
+ })
+ .then(response => response.json())
+ .then(data => data.idToken)  
+    }
+
+  // написать function валидацию форм
+
+  function validatePassword (value) {  
+
+    //check empty password field 
+    const inputPassword = document.getElementById('password');
+    const errorValidationPassword = document.getElementById('errorValidPassword');
+    
+    if (inputPassword.value === "") {  
+    errorValidationPassword.innerHTML = "**Fill the password please!";     
+    return false;  
     } 
+
+    //minimum password length validation  
+    if (inputPassword.value.length < 8) {
+        errorValidationPassword.innerHTML = "**Password length must be at least 8 characters"; 
+    return false;  
+    } 
+
+//  8 to 15 characters which contain at least one lowercase letter, one uppercase letter, one numeric digit, and one special character
+    let decimal = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[^a-zA-Z0-9])(?!.*\s).{8,15}$/;
+    if (!inputPassword.value.match(decimal)) {
+        errorValidationPassword.innerHTML = "**Fill the right password please!";
+        return false;
+     } else {
+        errorValidationPassword.innerHTML = ""; 
+        return value;
+    }
+}    
+function validateEmail(value) {
+       
+    const inputLogin = document.getElementById('login');
+    const errorValidationEmail = document.getElementById('errorValidEmail');
+ //check empty email field 
+    if (inputLogin.value === "") {  
+        errorValidationEmail.innerHTML = "**Fill the e-mail please!"; 
+    return false;  
+    }  
+    let mailformat = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/;
+    if (!inputLogin.value.match(mailformat)) {
+        errorValidationEmail.innerHTML = "**You have entered an invalid email address!"; 
+    return false;  
+    } else {
+        errorValidationEmail.innerHTML = "";
+        return value;
+    }      
+}
+
+  // накидывать на баттон событие по запросу на сервер
+
+
+  function createForm (name) {
+    const form = document.createElement('form');
+    form.id = name;
+    return form;
+  }
+  
+  function createInput (name, type, title) {
+    if (!name || !type) return null;
+    const input = document.createElement('input');
+    input.type = type;
+    input.id = name;
+    input.name = name;
+    input.title = title;
+    return input;
+  }
+  
+  function createTitle (text) {
+    if (!text) return null;
+    const title = document.createElement('h3');
+    title.innerHTML = text;
+    return title;
+  }
+  
+  function createButton (name, type, text) {
+    if (!name || !type || !text) return null;
+    const button = document.createElement('button');
+    button.innerHTML = text;
+    button.type = type;
+    button.id = name;
+    button.name = name;
+    button.disabled = true;
+    return button;
   }
 
-  function onClick () {
-    message.innerHTML = "";
-      return inputP.style.boxShadow = "0 0 1px 1px blue";
+  function createLabel (name) {
+    if (!name) return null;
+    const errorValidation = document.createElement('label');
+    errorValidation.style.color = "red";
+    errorValidation.id = name;
+    errorValidation.name = name;
+   return errorValidation;
   }
-
 
 
   

@@ -11,12 +11,7 @@
     
 }
 
-input {
-  outline: none;
-  border: none;
-}
-
-.form {
+form {
   display: flex;
   flex-direction: column;
   flex-wrap: wrap;
@@ -29,6 +24,7 @@ input {
  }
 
 input {
+    outline: none;
     width: 25%;
     padding: 12px;
     border: 1px solid rgb(204, 204, 204);
@@ -47,16 +43,13 @@ input[type=submit] {
     cursor: pointer;
     margin-top: 30px;
 }
-span {
-    font-size: 12px;
-    font-weight: 300;
-}
-.span {
+
+h3 {
     font-size: 20px;
     font-weight: 700;
-}
+} 
 
-.click {
-    border: 1px solid #39c; /* Рамка при получении фокуса */
-    width: 80%; /* Ширина поля */
-   }
+input:focus {
+    background: #ffe; /* Цвет фона */
+    border: 1px solid #29B0D9; /* Параметры рамки */
+  }
