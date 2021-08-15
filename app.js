@@ -40,46 +40,122 @@
         const password = inputPassword.value;
         const email = inputLogin.value;
         authWithEmailAndPassword(email, password)
-        .then (token => {
-            
-        })
-
-        // if (validatePassword(inputPassword.value) && validateEmail(inputLogin.value)) {
-
-        //     const guest = {
-        //         email: inputLogin.value.trim(),
-        //         password: inputPassword.value.trim(),
-        //         date: new Date().toJSON()
-        //     }
-            
-        //     button.disabled = true;
-        //     // Async request to server to save guest
-        //     console.log("Guest", guest)
-
-        //     inputLogin.value = "";
-        //     inputPassword.value = "";
-        //     button.disabled = false;
-
-
-    // }
+       
 
     }
+// Your web app's Firebase configuration
+    var firebaseConfig = {
+        apiKey: "AIzaSyB2Ksu_mphl7GoWF9zCwGVkSaVCrTTknCk",
+        authDomain: "login-form-app-18c1e.firebaseapp.com",
+        databaseURL: "https://login-form-app-18c1e-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "login-form-app-18c1e",
+        storageBucket: "login-form-app-18c1e.appspot.com",
+        messagingSenderId: "828076952376",
+        appId: "1:828076952376:web:6ee1d47435b3c15fdc8fcd"
+      };
+      // Initialize Firebase
+      firebase.initializeApp(firebaseConfig);
 
-    function authWithEmailAndPassword (email, password) {
-        const apiKey = "AIzaSyB2Ksu_mphl7GoWF9zCwGVkSaVCrTTknCk"
- return fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`, {
-     method: 'POST',
-     body: JSON.stringify({
-         email, password,
-         returnSecureToken: true 
-     }),
-      headers: {
-          'Content-Type': 'application/json'
-      }
- })
- .then(response => response.json())
- .then(data => data.idToken)  
+    async function registrWithEmailAndPassword (email, password) {
+        try {
+            const data = await firebase.auth().createUserWithEmailAndPassword(email, password);
+            // вызов функции onSuccessAuth
+            console.log(data.user.uid)
+            alert('Вы успешно зарегистрировались')
+        } catch (error) {
+            if (error.code == 'auth/email-already-in-use') {
+                return alert('Данный email уже используется')
+            }
+            return console.log(error.message)
+            
+        }
+
+//         const apiKey = "AIzaSyB2Ksu_mphl7GoWF9zCwGVkSaVCrTTknCk"
+//  return fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${apiKey}`, {
+//      method: 'POST',
+//      body: JSON.stringify({
+//          email, password,
+//          returnSecureToken: true 
+//      }),
+//       headers: {
+//           'Content-Type': 'application/json'
+//       }
+//  })
+//  .then(response => response.json())
+//  .then(response => console.log(response.idToken, response.email))  
     }
+
+    async function authWithEmailAndPassword (email, password) {
+
+        try {
+            const data = await firebase.auth().signInWithEmailAndPassword(email, password);
+            // вызов функции onSuccessAuth
+            console.log(data.user.uid)
+        } catch (error) {
+            switch (error.code) {
+                case 'auth/wrong-password':
+                    alert('Вы ввели не корретный пароль')
+                    break;
+                case 'auth/user-not-found' :
+                    alert('Такой пользователь не найден')
+                    registrWithEmailAndPassword(email, password);
+                    break;
+                default:
+                    alert(error.message)
+            }
+          
+        }
+
+//         const apiKey = "AIzaSyB2Ksu_mphl7GoWF9zCwGVkSaVCrTTknCk"
+//  return fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`, {
+//      method: 'POST',
+//      body: JSON.stringify({
+//          email, password,
+//          returnSecureToken: true 
+//      }),
+//       headers: {
+//           'Content-Type': 'application/json'
+//       }
+//  })
+//  .then(response => {
+//      if (response.ok) {
+//         response.json().then(data => console.log('Ваш токен', data.idToken, 'Ваша почта', data.email))
+//      }
+//      return console.log(returnEmailAndPassword())
+    //  response.json().then(error => {
+    //     const e = new Error('Пожалуйста зарегистрируйтесь')
+    //     e.data = error
+    //     throw e 
+    //  })  
+    // })
+//  .then(registrWithEmailAndPassword)  
+    }
+
+    // функция onSuccessAuth 
+    // готовит новый UI(список to do)
+    // замена в div root текущего UI на новый 
+    // сохранить в локал сторедж основной токен и токен рефреша
+    //объект тодо
+    const todoObject = {
+        id: 'string id',
+        created: 'date created',
+        updated: 'date updated',
+        userId: 'author id',
+        title: 'string title',
+        text: 'string text',
+        status: 'status id'
+    };
+
+    const statuses = {
+        id: 'string id',
+        title: 'string title', // new, completed
+    };
+    // создаю две таблицы в файрбез
+    // делаю запрос на фб для получения тудушек
+    // отрисовка тудушек
+    // создать форму для создания и редактирования тудушек и удаление
+    // сделать лоадинг при запросах на сервер
+
 
   // написать function валидацию форм
 
@@ -175,5 +251,13 @@ function validateEmail(value) {
    return errorValidation;
   }
 
-
+  document.onreadystatechange = function() {
+    if (document.readyState !== "complete") {
+        document.querySelector("body").style.visibility = "hidden";
+        document.querySelector("#loader").style.visibility = "visible";
+    } else {
+        document.querySelector("#loader").style.display = "none";
+        document.querySelector("body").style.visibility = "visible";
+    }
+};
   
