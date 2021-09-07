@@ -154,6 +154,21 @@ form {
     cursor: pointer;
 
 }
+#logout {
+    position: relative;
+    float: right;
+    width: 7%;
+    height: 35px;
+    border-radius: 5px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-weight: 500;
+    font-size: 16px;
+    background-color: #8052ec;
+    border: 1px transparent solid;
+    color: #ffffff;
+    cursor: pointer;
+    margin: 15px;
+}
 
 #newtask #btn-delete button:active
 {

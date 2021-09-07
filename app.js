@@ -1,18 +1,31 @@
-  (function () {
-    const rootElement = document.getElementById('root');
-    const authForm = initializeAuthForm();
+(async function () {
     
-    return rootElement.append(authForm);
-  })();
-  
-  function initializeAuthForm () {
-    const form = createForm ("auth");
-    const inputLogin = createInput ("login", "email", "Fill the e-mail please!");
-    const inputPassword = createInput ("password", "password", "Must contain at least one lowercase letter, one uppercase letter, one numeric digit, and one special character");
-    const title = createTitle ("Welcome");
-    const button = createButton ("button", "submit", "Login");
-    const errorValidationEmail = createLabel ("errorValidEmail");
-    const errorValidationPassword = createLabel ("errorValidPassword");
+    initializeFirebase();
+
+    if (localStorage.localId) { // если есть id юзера то при обновлении страницы отрисовуется туду лист и подгружаются таски
+
+        onSuccessAuth();
+        let tasks = await getToDoListFromDatabase(JSON.parse(localStorage.getItem('localId')));
+        console.log(tasks);
+        fillHtmlList(tasks)
+
+    } else { // если локал сторедж пуст стан отрисовка логинки
+
+        const rootElement = document.getElementById('root');
+        const authForm = initializeAuthForm();
+
+        return rootElement.append(authForm);
+    }
+})();
+
+function initializeAuthForm() {
+    const form = createForm("auth");
+    const inputLogin = createInput("login", "email", "Fill the e-mail please!");
+    const inputPassword = createInput("password", "password", "Must contain at least one lowercase letter, one uppercase letter, one numeric digit, and one special character");
+    const title = createTitle("Welcome");
+    const button = createButton("button", "submit", "Login");
+    const errorValidationEmail = createLabel("errorValidEmail");
+    const errorValidationPassword = createLabel("errorValidPassword");
 
     form.addEventListener('submit', submitFormHandler);
     inputPassword.addEventListener('input', () => {
@@ -21,7 +34,7 @@
     inputLogin.addEventListener("input", () => {
         button.disabled = !validateEmail(inputLogin.value)
     });
-  
+
     //создать с помощью append форму в правильном порядке 
     form.append(title);
     form.append(inputLogin);
@@ -29,19 +42,21 @@
     form.append(inputPassword);
     form.append(errorValidationPassword);
     form.append(button);
-  return form;
-    }
-  
-    function submitFormHandler (event) {
-        event.preventDefault(); 
-        const inputPassword = document.getElementById('password');
-        const inputLogin = document.getElementById('login');
-        const password = inputPassword.value;
-        const email = inputLogin.value;
-        authWithEmailAndPassword(email, password)
-    
-    }
-// Your web app's Firebase configuration
+    return form;
+}
+
+function submitFormHandler(event) {
+    event.preventDefault();
+    const inputPassword = document.getElementById('password');
+    const inputLogin = document.getElementById('login');
+    const password = inputPassword.value;
+    const email = inputLogin.value;
+    authWithEmailAndPassword(email, password)
+
+}
+// initialize firebase
+function initializeFirebase() {
+
     const firebaseConfig = {
         apiKey: "AIzaSyB2Ksu_mphl7GoWF9zCwGVkSaVCrTTknCk",
         authDomain: "login-form-app-18c1e.firebaseapp.com",
@@ -49,125 +64,115 @@
         projectId: "login-form-app-18c1e",
         storageBucket: "login-form-app-18c1e.appspot.com",
         messagingSenderId: "828076952376",
-        appId: "1:828076952376:web:6ee1d47435b3c15fdc8fcd"
-      };
-      // Initialize Firebase
-      firebase.initializeApp(firebaseConfig);
-    
-// Get a reference to the database service
-      const database = firebase.database();
-     
+        appId: "1:828076952376:web:6ee1d47435b3c15fdc8fcd",
 
-    async function registrWithEmailAndPassword (email, password) {
-        try {
-            const data = await firebase.auth().createUserWithEmailAndPassword(email, password);
-            window.localStorage.setItem('localId', JSON.stringify(data.user.uid));
-            window.localStorage.setItem('refreshToken', JSON.stringify(data.user.refreshToken));
-           
-            // вызов функции onSuccessAuth
-            onSuccessAuth();
-            alert('Вы успешно зарегистрировались')
-        } catch (error) {
-            if (error.code == 'auth/email-already-in-use') {
-                return alert('Данный email уже используется')
-            }
-            return console.log(error.message)
-            
+    };
+    return firebase.initializeApp(firebaseConfig);
+}
+
+async function registrWithEmailAndPassword(email, password) {
+    try {
+        const data = await firebase.auth().createUserWithEmailAndPassword(email, password);
+        window.localStorage.setItem('localId', JSON.stringify(data.user.uid));
+        window.localStorage.setItem('refreshToken', JSON.stringify(data.user.refreshToken));
+        window.localStorage.setItem('idToken', JSON.stringify(data.user.Aa));
+        // вызов функции onSuccessAuth
+        onSuccessAuth();
+        alert('Вы успешно зарегистрировались')
+    } catch (error) {
+        if (error.code == 'auth/email-already-in-use') {
+            return alert('Данный email уже используется')
+        }
+        return console.log(error.message)
+
+    }
+
+}
+
+async function authWithEmailAndPassword(email, password) {
+
+    try {
+        const data = await firebase.auth().signInWithEmailAndPassword(email, password);
+
+        window.localStorage.setItem('localId', JSON.stringify(data.user.uid));
+        window.localStorage.setItem('refreshToken', JSON.stringify(data.user.refreshToken));
+        window.localStorage.setItem('idToken', JSON.stringify(data.user.Aa));
+        onSuccessAuth();
+        alert('Вы успешно залогинились')
+        tasks = await getToDoListFromDatabase(data.user.uid);
+        console.log('--gettasks--', tasks);
+        fillHtmlList(tasks);
+
+    } catch (error) {
+        switch (error.code) {
+            case 'auth/wrong-password':
+                alert('Вы ввели не корретный пароль')
+                break;
+            case 'auth/user-not-found':
+                alert('Такой пользователь не найден')
+                registrWithEmailAndPassword(email, password);
+                break;
+            default:
+                alert(error.message)
         }
 
     }
 
-    async function authWithEmailAndPassword (email, password) {
+}
 
-        try {
-            const data = await firebase.auth().signInWithEmailAndPassword(email, password);
-            // вызов функции onSuccessAuth
-            window.localStorage.setItem('localId', JSON.stringify(data.user.uid));
-            window.localStorage.setItem('refreshToken', JSON.stringify(data.user.refreshToken));
-            window.localStorage.setItem('idToken', JSON.stringify(data.user.Aa));
-            onSuccessAuth();
-            alert('Вы успешно залогинились')
-            // loadUserTasksFromFb();
-            
-            const todos = await getToDoListFromDatabase()
-            console.log('--todos--', todos);
-            fillHtmlList(todos);
-            
-        } catch (error) {
-            switch (error.code) {
-                case 'auth/wrong-password':
-                    alert('Вы ввели не корретный пароль')
-                    break;
-                case 'auth/user-not-found' :
-                    alert('Такой пользователь не найден')
-                    registrWithEmailAndPassword(email, password);
-                    break;
-                default:
-                    alert(error.message)
-            }
-          
-        }
- 
-    }
-    // let StatusCollection = window.localStorage.getItem('StatusCollection');
-    //         console.log(StatusCollection.title);
-
-
-  // написать function валидацию форм
-
-  function validatePassword (value) {  
+function validatePassword(value) {
 
     //check empty password field 
     const inputPassword = document.getElementById('password');
     const errorValidationPassword = document.getElementById('errorValidPassword');
-    
-    if (inputPassword.value === "") {  
-    errorValidationPassword.innerHTML = "**Fill the password please!";     
-    return false;  
-    } 
+
+    if (inputPassword.value === "") {
+        errorValidationPassword.innerHTML = "**Fill the password please!";
+        return false;
+    }
 
     //minimum password length validation  
     if (inputPassword.value.length < 8) {
-        errorValidationPassword.innerHTML = "**Password length must be at least 8 characters"; 
-    return false;  
-    } 
+        errorValidationPassword.innerHTML = "**Password length must be at least 8 characters";
+        return false;
+    }
 
-//  8 to 15 characters which contain at least one lowercase letter, one uppercase letter, one numeric digit, and one special character
+    //  8 to 15 characters which contain at least one lowercase letter, one uppercase letter, one numeric digit, and one special character
     let decimal = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[^a-zA-Z0-9])(?!.*\s).{8,15}$/;
     if (!inputPassword.value.match(decimal)) {
         errorValidationPassword.innerHTML = "**Fill the right password please!";
         return false;
-     } else {
-        errorValidationPassword.innerHTML = ""; 
+    } else {
+        errorValidationPassword.innerHTML = "";
         return value;
     }
-}    
+}
 function validateEmail(value) {
-       
+
     const inputLogin = document.getElementById('login');
     const errorValidationEmail = document.getElementById('errorValidEmail');
- //check empty email field 
-    if (inputLogin.value === "") {  
-        errorValidationEmail.innerHTML = "**Fill the e-mail please!"; 
-    return false;  
-    }  
+    //check empty email field 
+    if (inputLogin.value === "") {
+        errorValidationEmail.innerHTML = "**Fill the e-mail please!";
+        return false;
+    }
     let mailformat = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/;
     if (!inputLogin.value.match(mailformat)) {
-        errorValidationEmail.innerHTML = "**You have entered an invalid email address!"; 
-    return false;  
+        errorValidationEmail.innerHTML = "**You have entered an invalid email address!";
+        return false;
     } else {
         errorValidationEmail.innerHTML = "";
         return value;
-    }      
+    }
 }
 
-  function createForm (name) {
+function createForm(name) {
     const form = document.createElement('form');
     form.id = name;
     return form;
-  }
-  
-  function createInput (name, type, title) {
+}
+
+function createInput(name, type, title) {
     if (!name || !type) return null;
     const input = document.createElement('input');
     input.type = type;
@@ -175,16 +180,16 @@ function validateEmail(value) {
     input.name = name;
     input.title = title;
     return input;
-  }
-  
-  function createTitle (text) {
+}
+
+function createTitle(text) {
     if (!text) return null;
     const title = document.createElement('h3');
     title.innerHTML = text;
     return title;
-  }
-  
-  function createButton (name, type, text) {
+}
+
+function createButton(name, type, text) {
     if (!name || !type || !text) return null;
     const button = document.createElement('button');
     button.innerHTML = text;
@@ -193,25 +198,25 @@ function validateEmail(value) {
     button.name = name;
     button.disabled = true;
     return button;
-  }
+}
 
-  function createLabel (name) {
+function createLabel(name) {
     if (!name) return null;
     const errorValidation = document.createElement('label');
     errorValidation.style.color = "red";
     errorValidation.id = name;
     errorValidation.name = name;
-   return errorValidation;
-  }
+    return errorValidation;
+}
 
-  function createDiv (name) {
+function createDiv(name) {
     const div = document.createElement('div');
     div.id = name;
     div.className = name;
     return div;
-  }
+}
 
-  document.onreadystatechange = function() {
+document.onreadystatechange = function () {
     if (document.readyState !== "complete") {
         document.querySelector("body").style.visibility = "hidden";
         document.querySelector("#loader").style.visibility = "visible";
@@ -220,50 +225,61 @@ function validateEmail(value) {
         document.querySelector("body").style.visibility = "visible";
     }
 };
-  /////////////////////// to do list
-  // замена в div root текущего UI на новый 
-  function onSuccessAuth () {
+/////////////////////// to do list
+// замена в div root текущего UI на новый 
+function onSuccessAuth() {
     const rootElement = document.getElementById('root');
     rootElement.remove();
     const newRootElement = createDiv('root');
+    const logOutBtn = createButton("logout", "submit", "Logout");
+    logOutBtn.disabled = false;
+    logOutBtn.addEventListener('click', logOut);
     const todoList = initializeTodoList();
     document.body.appendChild(newRootElement);
+    newRootElement.append(logOutBtn);
     return newRootElement.append(todoList);
 
-    // сохранить в локал сторедж основной токен и токен рефреша
-  }
+}
 
-function initializeTodoList () {
-    const container = createDiv ("container");
-    const title = createTitle ("My ToDo List");
-    const newTask = createDiv ("newtask");
-    const deskTaskInput = createInput ("input", "text");
-    const addTaskBtn = createButton ("push", "submit", "Add");
+function initializeTodoList() {
+    const container = createDiv("container");
+    const title = createTitle("My ToDo List");
+    const newTask = createDiv("newtask");
+    const deskTaskInput = createInput("input", "text");
+    const addTaskBtn = createButton("push", "submit", "Add");
     addTaskBtn.disabled = false;
-    const tasks = createDiv ("tasks");
+    const tasks = createDiv("tasks");
     deskTaskInput.placeholder = "Task to be done..";
-  container.append(title);
-  container.append(newTask);
-  newTask.append(deskTaskInput);
-  newTask.append(addTaskBtn); 
-  container.append(tasks);
+    container.append(title);
+    container.append(newTask);
+    newTask.append(deskTaskInput);
+    newTask.append(addTaskBtn);
+    container.append(tasks);
 
-addTaskBtn.addEventListener('click', submitTask);
+    addTaskBtn.addEventListener('click', submitTask);
 
-return container;
+    return container;
 
 }
- // создать форму для создания и редактирования тудушек и удаление
-// 
+// функция которая затирает все данные из локал сторедж и отрисовует страницу авторизации
+function logOut() {
+    const rootElement = document.getElementById('root');
+    rootElement.remove();
+    const newRootElement = createDiv('root');
+    const authForm = initializeAuthForm();
+    document.body.appendChild(newRootElement);
+    localStorage.clear();
+    return newRootElement.append(authForm);
+}
+
 let tasks;
-!localStorage.tasks ? tasks = [] : tasks = JSON.parse(localStorage.getItem('tasks')) 
-console.log('--test--', tasks);
+!localStorage.tasks ? tasks = [] : tasks = JSON.parse(localStorage.getItem('tasks'))
 // при инициализации страницы если нет таскс в localStorage то тогда массив будет пустым, если есть то мы записываем в таскс эти значения 
 
 let todoItemElems = []; // массив в котором хранятся все созданные тудушки
 
 // функция конструктор которая создает много однотипным объектов таск
-function Task (title) {
+function Task(title) {
     this.userId = JSON.parse(window.localStorage.getItem('localId'));
     this.dateCreated = Date.now();
     this.dateUpdated = Date.now();
@@ -271,32 +287,74 @@ function Task (title) {
     this.status = false; // false - новая тудушка 
 }
 
-async function getToDoListFromDatabase () {
+// асинхронная функция сначала записывается туду в коллекцию в датабейз, если удачно, тогда мы пушим эту тудушку в массив таскс
+async function submitTask() {
+    const deskTaskInput = document.getElementById('input');
+    if (deskTaskInput.value.length == 0) {
+        alert("Please enter a task");
+
+    } else {
+        try {
+            await addToDoInDatabase(new Task(deskTaskInput.value));
+            tasks = await getToDoListFromDatabase(JSON.parse(localStorage.getItem('localId'))) // записываем массив тудушек из database с id каждой туду в том числе новой туду
+            console.log('--tasks--', tasks)
+            fillHtmlList(); // рисуем массив таскс на странице
+            deskTaskInput.value = '';
+
+        } catch (error) {
+            console.error(error);
+        }
+    }
+}
+
+// функция добавления тудушки в датабейс, она принимает таску которую мы создали
+async function addToDoInDatabase(task) {
+    try {
+        return await firebase.database().ref('ToDo').push(task) // создаем коллекцию ToDо где будут хранится все туду всех пользователей
+
+    } catch (error) {
+        console.log(error.message)
+
+    }
+}
+
+async function getToDoListFromDatabase(id) {
     try {
         // можно попробовать воспользоваться методом сортировки из библиотеки firebase 
-      return await database.ref('ToDo').get()
-       .then(response => response.val())
-       .then(response => {
-           return response ? Object.keys(response).map(key => ({
-           ...response[key],
-           id: key
-       })) : []
-       
-    })
-    // здесь нужно сделать фильтр по id автора
-    // здесь нужно сделать фильтр по статусу и вывести все тудушки не имеющие статут архив
-    .then(response => {
-        window.localStorage.setItem('tasks', JSON.stringify(response));
-        return  response;
-    })
-    } catch(error) {
+        return await firebase.database().ref('ToDo').get()
+            .then(response => response.val())
+            .then(response => {
+                return response ? Object.keys(response).map(key => ({
+                    ...response[key],
+                    id: key
+                })) : []
+
+            })
+            .then(response => {
+                return response.filter(task => {
+                    return task.userId == `${id}`;
+                })     // фильтр по id автора
+            })
+
+            // здесь нужно сделать фильтр по статусу и вывести все тудушки не имеющие статут архив
+            .then(response => {
+                return response.filter(task => {
+                    return task.status !== 'archived';
+                })
+            })
+            .then(response => {
+                console.log(response)
+                window.localStorage.setItem('tasks', JSON.stringify(response));
+                return response;
+            })
+    } catch (error) {
         console.error(error)
     }
 }
 
 // функция отображения таски на странице
 // если такс статус есть то добавляем класс чекед, иначе ничего
-function createTemplate (task, index) {
+function createTemplate(task, index) {
     return `
 <div class="task ${task.status ? 'checked' : ''}"> 
 <div id="taskname"> ${task.title} </div>
@@ -305,155 +363,62 @@ function createTemplate (task, index) {
 <button onclick = deleteTask(${index}) class="btn-delete">Delete</button>
 </div>
 </div>
-`; 
+`;
 }
 // функция которая показывает таски на странице
-function fillHtmlList (todos) {
+function fillHtmlList() {
     document.querySelector('#tasks').innerHTML = ""; // зачищаем див с тасками
     // если в массиве таскс что-то есть то мы пробегаем по массиву с помощью forEach , так как это массив итерации будут повторятся, += говорит что мы
     // добавляем к следующей итерации функцию createTemplate, которая принимает task - наш таск с массива таскс и index таски 
-    if(todos.length >0) {
+    if (tasks.length > 0) {
         filterTask();
-        todos.forEach((task, index) => {
-            document.querySelector('#tasks').innerHTML += createTemplate(task, index);   
+        tasks.forEach((task, index) => {
+            document.querySelector('#tasks').innerHTML += createTemplate(task, index);
         })
         todoItemElems = document.querySelectorAll('.task') // в массив записываем новую тудушку
-    } 
+    }
 }
 
 fillHtmlList(); // вызываем при инициализации страницы для того что б пробигать по таскам и отображать на странице все такси из массива
 
 // функция для записи массива тасков в localStorage, эта функция вызывается когда массив таскс был обновлен/изменен 
-function updateLocal () {
-localStorage.setItem('tasks', JSON.stringify(tasks));
+function updateLocal() {
+    localStorage.setItem('tasks', JSON.stringify(tasks));
 }
 
-async function completeTask (index) {
+async function completeTask(index) {
     tasks[index].status = !tasks[index].status; // пробегаемся по массиву такс и находим по индексу ту таску на которой нажали чекбокс и изменем в ней
     // статус на комплитед
-    if(tasks[index].status) { 
-       await database.ref('ToDo'+ userId).update({status: tasks[index].status})
+    if (tasks[index].status === true) {
+        await firebase.database().ref('ToDo').child(tasks[index].id).update({ dateUpdated: Date.now()})
+        await firebase.database().ref('ToDo').child(tasks[index].id).update({ status: true })
+        
         todoItemElems[index].classList.add("checked");
-    } else {
+    } else if (tasks[index].status === false) {
+        await firebase.database().ref('ToDo').child(tasks[index].id).update({ dateUpdated: Date.now()})
+        await firebase.database().ref('ToDo').child(tasks[index].id).update({ status: false })
         
         todoItemElems[index].classList.remove("checked");
     }
     updateLocal(); // обновить данные в локал сторедж
-    // completeToDo();
     fillHtmlList(); // в связи с тем что мы изменили таску нужно показать это изменение на странице
 }
 
-async function completeToDo(task) {
-    try {
-        const completeTask = await database.ref('users').child(`${task.userId}`).set(task)
-        console.log(completeTask)
-    } catch (error) {
-        console.log(error.message)
-        
-    }
-}
-
-function deleteTask (index) {
+async function deleteTask(index) {
     tasks[index].disabled = false;
     todoItemElems[index].classList.add("delition");
+    await firebase.database().ref('ToDo').child(tasks[index].id).update({ status: 'archived' })
+    await firebase.database().ref('ToDo').child(tasks[index].id).update({ dateUpdated: Date.now()})
     setTimeout(() => {
         tasks.splice(index, 1); // удаляем таску из массива таскс
         updateLocal();
         fillHtmlList();
-    },500)
-    
+    }, 500)
+
 }
 // функция которая отражает на странице сначала которые не выполненые а потом те которые выполнены
-function filterTask () {
-    const activeTasks = tasks.length && tasks.filter(item => item.status == false);
-    const completedTasks = tasks.length && tasks.filter(item => item.status == true);
-    tasks = [...activeTasks, ...completedTasks]; 
+function filterTask() {
+    const activeTasks = tasks.length && tasks.filter(item => item.status === false);
+    const completedTasks = tasks.length && tasks.filter(item => item.status === true);
+    tasks = [...activeTasks, ...completedTasks];
 }
-// асинхронная функция сначала записывается туду в коллекцию в датабейз, если удачно, тогда мы пушим эту тудушку в массив таскс
-async function submitTask () {
-    const deskTaskInput = document.getElementById('input');
-    if (deskTaskInput.value.length == 0) {
-        alert("Please enter a task");
-    
-    } else {
-    tasks.push(new Task(deskTaskInput.value));
-    const newTodo = await addToDoInDatabase(new Task(deskTaskInput.value));
-    // if (newTodo) {
-    //     tasks.push(newTodo);
-    // }
-    updateLocal();
-    fillHtmlList();
-    }
-  
-    deskTaskInput.value = '';
-}
-// функция добавления тудушки в датабейс, она принимает таску которую мы создали
-async function addToDoInDatabase(task) {
-    try {
-        return await database.ref('ToDo').push(task) // создаем коллекцию ToDо где будут хранится все туду всех пользователей
-    
-    } catch (error) {
-        console.log(error.message)
-        
-    }
-}
-
-// async function loadUserTasksFromFb() {
-//     try {
-//         const taskList = await database.ref('users').once('value')
-//         const clientsList = taskList.val()         
-//         console.log(clientsList)
-//     } catch (error) {
-//         console.log(error.message)
-//         throw error
-//     }
-// }
-
-
-
-firebase.database().ref('clients').remove() // удаление тасков с Fb
-firebase.database().ref().update(updates); // обновление данных в Fb, update возвращает промис
-
-
- // функция onSuccessAuth 
-    // готовит новый UI(список to do)
-  
-    
-    //объект тодо
-    const todoObject = {
-        // id: 'todo string id',
-        created: 'date created',
-        updated: 'date updated',
-        userId: 'author id',
-        title: 'string title',
-        text: 'string text',
-        statusId: 'status id'
-    };
-
-// функция добавления коллекции статусов в базу данных, они статические
-// async function addCollectionStatusInDatabase(title) {
-//     try {
-//         return await database.ref('StatusCollection').push({
-//             title: title,
-//         })
-//     } catch (error) {
-//         console.log(error.message)
-        
-//     }
-// }
-
-    const statuses = {
-        // id: 'string id',
-        title: 'string title', // new, completed, archieved
-    };
-
-
-   // создаю две таблицы в файрбез
-    // делаю запрос на фб для получения тудушек
-    
-
-   
-
-    // отрисовка тудушек
-    
-    // сделать лоадинг при запросах на сервер
