@@ -1,19 +1,34 @@
-(async function () {
-    
-    initializeFirebase();
-
-    if (localStorage.localId) { // если есть id юзера то при обновлении страницы отрисовуется туду лист и подгружаются таски
-
-        onSuccessAuth();
-        let tasks = await getToDoListFromDatabase(JSON.parse(localStorage.getItem('localId')));
-        console.log(tasks);
-        fillHtmlList(tasks)
-
-    } else { // если локал сторедж пуст стан отрисовка логинки
-
+// loader
+document.onreadystatechange = function () {
+    if (document.readyState !== "complete") {
+        document.querySelector("body").style.visibility = "hidden";
+        document.querySelector("#loader").style.visibility = "visible";
+    } else {
+        document.querySelector("#loader").style.display = "none";
+        document.querySelector("body").style.visibility = "visible";
+    }
+};
+// checking firebase file from html
+!firebaseConfig ? undefined : firebase.initializeApp(firebaseConfig);
+// array to save tasks
+let tasks;
+// checking the local storage during page initialization
+!localStorage.tasks ? tasks = [] : tasks = JSON.parse(localStorage.getItem('tasks'))
+// array to save all created tasks
+let taskItemElems = []; 
+// we use this function when array tasks have changed
+function updateLocal() {
+    localStorage.setItem('tasks', JSON.stringify(tasks));
+}
+// function works when you open app
+(async function () {  
+    if (localStorage.localId) {
+        generateTasksPage();
+        let tasks = await getTasksListFromDatabase(JSON.parse(localStorage.getItem('localId')));
+        fillTasksList(tasks)
+    } else { 
         const rootElement = document.getElementById('root');
         const authForm = initializeAuthForm();
-
         return rootElement.append(authForm);
     }
 })();
@@ -26,7 +41,6 @@ function initializeAuthForm() {
     const button = createButton("button", "submit", "Login");
     const errorValidationEmail = createLabel("errorValidEmail");
     const errorValidationPassword = createLabel("errorValidPassword");
-
     form.addEventListener('submit', submitFormHandler);
     inputPassword.addEventListener('input', () => {
         button.disabled = !validatePassword(inputPassword.value)
@@ -34,8 +48,6 @@ function initializeAuthForm() {
     inputLogin.addEventListener("input", () => {
         button.disabled = !validateEmail(inputLogin.value)
     });
-
-    //создать с помощью append форму в правильном порядке 
     form.append(title);
     form.append(inputLogin);
     form.append(errorValidationEmail);
@@ -52,116 +64,88 @@ function submitFormHandler(event) {
     const password = inputPassword.value;
     const email = inputLogin.value;
     authWithEmailAndPassword(email, password)
-
-}
-// initialize firebase
-function initializeFirebase() {
-
-    const firebaseConfig = {
-        apiKey: "AIzaSyB2Ksu_mphl7GoWF9zCwGVkSaVCrTTknCk",
-        authDomain: "login-form-app-18c1e.firebaseapp.com",
-        databaseURL: "https://login-form-app-18c1e-default-rtdb.europe-west1.firebasedatabase.app",
-        projectId: "login-form-app-18c1e",
-        storageBucket: "login-form-app-18c1e.appspot.com",
-        messagingSenderId: "828076952376",
-        appId: "1:828076952376:web:6ee1d47435b3c15fdc8fcd",
-
-    };
-    return firebase.initializeApp(firebaseConfig);
 }
 
 async function registrWithEmailAndPassword(email, password) {
+    const errorValidationEmail = document.getElementById('errorValidEmail');
     try {
         const data = await firebase.auth().createUserWithEmailAndPassword(email, password);
         window.localStorage.setItem('localId', JSON.stringify(data.user.uid));
         window.localStorage.setItem('refreshToken', JSON.stringify(data.user.refreshToken));
         window.localStorage.setItem('idToken', JSON.stringify(data.user.Aa));
-        // вызов функции onSuccessAuth
-        onSuccessAuth();
-        alert('Вы успешно зарегистрировались')
+        generateTasksPage();
+        alert('You have successfully registered')
     } catch (error) {
         if (error.code == 'auth/email-already-in-use') {
-            return alert('Данный email уже используется')
+            return showError(errorValidationEmail, 'Email already in use')
+        } else {
+        return showError(errorValidationEmail, error.message)
         }
-        return console.log(error.message)
-
     }
-
 }
 
 async function authWithEmailAndPassword(email, password) {
-
+    const errorValidationPassword = document.getElementById('errorValidPassword');
     try {
         const data = await firebase.auth().signInWithEmailAndPassword(email, password);
-
         window.localStorage.setItem('localId', JSON.stringify(data.user.uid));
         window.localStorage.setItem('refreshToken', JSON.stringify(data.user.refreshToken));
         window.localStorage.setItem('idToken', JSON.stringify(data.user.Aa));
-        onSuccessAuth();
-        alert('Вы успешно залогинились')
-        tasks = await getToDoListFromDatabase(data.user.uid);
-        console.log('--gettasks--', tasks);
-        fillHtmlList(tasks);
-
+        generateTasksPage();
+        tasks = await getTasksListFromDatabase(data.user.uid);
+        fillTasksList(tasks);
     } catch (error) {
         switch (error.code) {
             case 'auth/wrong-password':
-                alert('Вы ввели не корретный пароль')
+                showError(errorValidationPassword, "You fill wrong password");
                 break;
             case 'auth/user-not-found':
-                alert('Такой пользователь не найден')
+                showError(errorValidationPassword, "User not found");
                 registrWithEmailAndPassword(email, password);
                 break;
             default:
-                alert(error.message)
+                showError(errorValidationPassword, error.message)
         }
-
     }
+}
 
+function showError(label, text) {
+    label.innerHTML = text;
 }
 
 function validatePassword(value) {
-
-    //check empty password field 
     const inputPassword = document.getElementById('password');
     const errorValidationPassword = document.getElementById('errorValidPassword');
-
+     //check empty password field 
     if (inputPassword.value === "") {
-        errorValidationPassword.innerHTML = "**Fill the password please!";
-        return false;
+        return showError(errorValidationPassword, "**Fill the password please!");
     }
-
     //minimum password length validation  
     if (inputPassword.value.length < 8) {
-        errorValidationPassword.innerHTML = "**Password length must be at least 8 characters";
-        return false;
+        return showError(errorValidationPassword, "**Password length must be at least 8 characters");
     }
-
     //  8 to 15 characters which contain at least one lowercase letter, one uppercase letter, one numeric digit, and one special character
     let decimal = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[^a-zA-Z0-9])(?!.*\s).{8,15}$/;
     if (!inputPassword.value.match(decimal)) {
-        errorValidationPassword.innerHTML = "**Fill the right password please!";
-        return false;
+        return showError(errorValidationPassword, "**Fill the right password please!");
     } else {
-        errorValidationPassword.innerHTML = "";
+        showError(errorValidationPassword, "");
         return value;
     }
 }
-function validateEmail(value) {
 
+function validateEmail(value) {
     const inputLogin = document.getElementById('login');
     const errorValidationEmail = document.getElementById('errorValidEmail');
     //check empty email field 
     if (inputLogin.value === "") {
-        errorValidationEmail.innerHTML = "**Fill the e-mail please!";
-        return false;
+        return showError(errorValidationEmail, "**Fill the e-mail please!");
     }
     let mailformat = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/;
     if (!inputLogin.value.match(mailformat)) {
-        errorValidationEmail.innerHTML = "**You have entered an invalid email address!";
-        return false;
+        return showError(errorValidationEmail, "**You have entered an invalid email address!");
     } else {
-        errorValidationEmail.innerHTML = "";
+        showError(errorValidationEmail, "");
         return value;
     }
 }
@@ -215,35 +199,24 @@ function createDiv(name) {
     div.className = name;
     return div;
 }
+// ================================ tasks page
 
-document.onreadystatechange = function () {
-    if (document.readyState !== "complete") {
-        document.querySelector("body").style.visibility = "hidden";
-        document.querySelector("#loader").style.visibility = "visible";
-    } else {
-        document.querySelector("#loader").style.display = "none";
-        document.querySelector("body").style.visibility = "visible";
-    }
-};
-/////////////////////// to do list
-// замена в div root текущего UI на новый 
-function onSuccessAuth() {
+function generateTasksPage() {
     const rootElement = document.getElementById('root');
     rootElement.remove();
     const newRootElement = createDiv('root');
     const logOutBtn = createButton("logout", "submit", "Logout");
     logOutBtn.disabled = false;
     logOutBtn.addEventListener('click', logOut);
-    const todoList = initializeTodoList();
+    const tasksList = initializeTasksForm();
     document.body.appendChild(newRootElement);
     newRootElement.append(logOutBtn);
-    return newRootElement.append(todoList);
-
+    return newRootElement.append(tasksList);
 }
 
-function initializeTodoList() {
+function initializeTasksForm() {
     const container = createDiv("container");
-    const title = createTitle("My ToDo List");
+    const title = createTitle("My Tasks List");
     const newTask = createDiv("newtask");
     const deskTaskInput = createInput("input", "text");
     const addTaskBtn = createButton("push", "submit", "Add");
@@ -255,13 +228,10 @@ function initializeTodoList() {
     newTask.append(deskTaskInput);
     newTask.append(addTaskBtn);
     container.append(tasks);
-
-    addTaskBtn.addEventListener('click', submitTask);
-
+    addTaskBtn.addEventListener('click', submitTaskFromDatabase);
     return container;
-
 }
-// функция которая затирает все данные из локал сторедж и отрисовует страницу авторизации
+// function to clear local storage and initialize auth form
 function logOut() {
     const rootElement = document.getElementById('root');
     rootElement.remove();
@@ -271,56 +241,41 @@ function logOut() {
     localStorage.clear();
     return newRootElement.append(authForm);
 }
-
-let tasks;
-!localStorage.tasks ? tasks = [] : tasks = JSON.parse(localStorage.getItem('tasks'))
-// при инициализации страницы если нет таскс в localStorage то тогда массив будет пустым, если есть то мы записываем в таскс эти значения 
-
-let todoItemElems = []; // массив в котором хранятся все созданные тудушки
-
-// функция конструктор которая создает много однотипным объектов таск
+// function constructor to create many tasks object
 function Task(title) {
     this.userId = JSON.parse(window.localStorage.getItem('localId'));
     this.dateCreated = Date.now();
     this.dateUpdated = Date.now();
     this.title = title;
-    this.status = false; // false - новая тудушка 
+    this.status = false;
 }
 
-// асинхронная функция сначала записывается туду в коллекцию в датабейз, если удачно, тогда мы пушим эту тудушку в массив таскс
-async function submitTask() {
+async function submitTaskFromDatabase() {
     const deskTaskInput = document.getElementById('input');
     if (deskTaskInput.value.length == 0) {
-        alert("Please enter a task");
-
+        alert("Please enter a task!");
     } else {
         try {
-            await addToDoInDatabase(new Task(deskTaskInput.value));
-            tasks = await getToDoListFromDatabase(JSON.parse(localStorage.getItem('localId'))) // записываем массив тудушек из database с id каждой туду в том числе новой туду
-            console.log('--tasks--', tasks)
-            fillHtmlList(); // рисуем массив таскс на странице
+            await addTaskToDatabase(new Task(deskTaskInput.value));
+            tasks = await getTasksListFromDatabase(JSON.parse(localStorage.getItem('localId')))
+            fillTasksList(tasks);
             deskTaskInput.value = '';
-
         } catch (error) {
             console.error(error);
         }
     }
 }
 
-// функция добавления тудушки в датабейс, она принимает таску которую мы создали
-async function addToDoInDatabase(task) {
+async function addTaskToDatabase(task) {
     try {
-        return await firebase.database().ref('ToDo').push(task) // создаем коллекцию ToDо где будут хранится все туду всех пользователей
-
+        return await firebase.database().ref('ToDo').push(task);
     } catch (error) {
         console.log(error.message)
-
     }
 }
 
-async function getToDoListFromDatabase(id) {
+async function getTasksListFromDatabase(id) {
     try {
-        // можно попробовать воспользоваться методом сортировки из библиотеки firebase 
         return await firebase.database().ref('ToDo').get()
             .then(response => response.val())
             .then(response => {
@@ -328,33 +283,27 @@ async function getToDoListFromDatabase(id) {
                     ...response[key],
                     id: key
                 })) : []
-
             })
             .then(response => {
                 return response.filter(task => {
                     return task.userId == `${id}`;
-                })     // фильтр по id автора
+                })     
             })
-
-            // здесь нужно сделать фильтр по статусу и вывести все тудушки не имеющие статут архив
             .then(response => {
                 return response.filter(task => {
                     return task.status !== 'archived';
                 })
             })
             .then(response => {
-                console.log(response)
                 window.localStorage.setItem('tasks', JSON.stringify(response));
                 return response;
             })
     } catch (error) {
-        console.error(error)
+        console.error(error);
     }
 }
 
-// функция отображения таски на странице
-// если такс статус есть то добавляем класс чекед, иначе ничего
-function createTemplate(task, index) {
+function createTaskTemplate(task, index) {
     return `
 <div class="task ${task.status ? 'checked' : ''}"> 
 <div id="taskname"> ${task.title} </div>
@@ -365,60 +314,41 @@ function createTemplate(task, index) {
 </div>
 `;
 }
-// функция которая показывает таски на странице
-function fillHtmlList() {
-    document.querySelector('#tasks').innerHTML = ""; // зачищаем див с тасками
-    // если в массиве таскс что-то есть то мы пробегаем по массиву с помощью forEach , так как это массив итерации будут повторятся, += говорит что мы
-    // добавляем к следующей итерации функцию createTemplate, которая принимает task - наш таск с массива таскс и index таски 
+// function to display array tasks on a page
+function fillTasksList(tasks) {
+    document.querySelector('#tasks').innerHTML = "";
     if (tasks.length > 0) {
-        filterTask();
         tasks.forEach((task, index) => {
-            document.querySelector('#tasks').innerHTML += createTemplate(task, index);
+            document.querySelector('#tasks').innerHTML += createTaskTemplate(task, index);
         })
-        todoItemElems = document.querySelectorAll('.task') // в массив записываем новую тудушку
+        taskItemElems = document.querySelectorAll('.task') 
     }
-}
-
-fillHtmlList(); // вызываем при инициализации страницы для того что б пробигать по таскам и отображать на странице все такси из массива
-
-// функция для записи массива тасков в localStorage, эта функция вызывается когда массив таскс был обновлен/изменен 
-function updateLocal() {
-    localStorage.setItem('tasks', JSON.stringify(tasks));
 }
 
 async function completeTask(index) {
-    tasks[index].status = !tasks[index].status; // пробегаемся по массиву такс и находим по индексу ту таску на которой нажали чекбокс и изменем в ней
-    // статус на комплитед
+    tasks[index].status = !tasks[index].status;
+    console.log(index)
     if (tasks[index].status === true) {
         await firebase.database().ref('ToDo').child(tasks[index].id).update({ dateUpdated: Date.now()})
-        await firebase.database().ref('ToDo').child(tasks[index].id).update({ status: true })
-        
-        todoItemElems[index].classList.add("checked");
+        await firebase.database().ref('ToDo').child(tasks[index].id).update({ status: true })  
+        taskItemElems[index].classList.add("checked");
     } else if (tasks[index].status === false) {
         await firebase.database().ref('ToDo').child(tasks[index].id).update({ dateUpdated: Date.now()})
         await firebase.database().ref('ToDo').child(tasks[index].id).update({ status: false })
-        
-        todoItemElems[index].classList.remove("checked");
+        taskItemElems[index].classList.remove("checked");
     }
-    updateLocal(); // обновить данные в локал сторедж
-    fillHtmlList(); // в связи с тем что мы изменили таску нужно показать это изменение на странице
+    updateLocal();
+    fillTasksList(tasks);
 }
 
 async function deleteTask(index) {
     tasks[index].disabled = false;
-    todoItemElems[index].classList.add("delition");
+    taskItemElems[index].classList.add("delition");
     await firebase.database().ref('ToDo').child(tasks[index].id).update({ status: 'archived' })
     await firebase.database().ref('ToDo').child(tasks[index].id).update({ dateUpdated: Date.now()})
     setTimeout(() => {
-        tasks.splice(index, 1); // удаляем таску из массива таскс
+        tasks.splice(index, 1);
         updateLocal();
-        fillHtmlList();
+        fillTasksList(tasks);
     }, 500)
-
-}
-// функция которая отражает на странице сначала которые не выполненые а потом те которые выполнены
-function filterTask() {
-    const activeTasks = tasks.length && tasks.filter(item => item.status === false);
-    const completedTasks = tasks.length && tasks.filter(item => item.status === true);
-    tasks = [...activeTasks, ...completedTasks];
 }
