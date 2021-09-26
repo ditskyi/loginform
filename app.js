@@ -8,24 +8,22 @@ document.onreadystatechange = function () {
         document.querySelector("body").style.visibility = "visible";
     }
 };
-// checking firebase file from html
-!firebaseConfig ? undefined : firebase.initializeApp(firebaseConfig);
-// array to save tasks
-let tasks;
-// checking the local storage during page initialization
-!localStorage.tasks ? tasks = [] : tasks = JSON.parse(localStorage.getItem('tasks'))
-// array to save all created tasks
-let taskItemElems = []; 
-// we use this function when array tasks have changed
-function updateLocal() {
+
+function setLocalTasks(tasks) {
     localStorage.setItem('tasks', JSON.stringify(tasks));
 }
-// function works when you open app
+
+function getLocalTasks() {
+    return JSON.parse(localStorage.getItem('tasks'));
+}
+
 (async function () {  
-    if (localStorage.localId) {
+// checking firebase file from html
+!firebaseConfig ? undefined : firebase.initializeApp(firebaseConfig);
+    if (localStorage.getItem('localId')) {
         generateTasksPage();
         let tasks = await getTasksListFromDatabase(JSON.parse(localStorage.getItem('localId')));
-        fillTasksList(tasks)
+        generateTasksList(tasks)
     } else { 
         const rootElement = document.getElementById('root');
         const authForm = initializeAuthForm();
@@ -42,11 +40,21 @@ function initializeAuthForm() {
     const errorValidationEmail = createLabel("errorValidEmail");
     const errorValidationPassword = createLabel("errorValidPassword");
     form.addEventListener('submit', submitFormHandler);
-    inputPassword.addEventListener('input', () => {
-        button.disabled = !validatePassword(inputPassword.value)
+    inputPassword.addEventListener('input', (event) => {
+        const value = event.target.value;
+        const error = validatePassword(value);
+        if (error) {
+            button.disabled = !validatePassword(value);
+            errorValidationPassword.innerHTML = error;
+        }    
     });
-    inputLogin.addEventListener("input", () => {
-        button.disabled = !validateEmail(inputLogin.value)
+    inputLogin.addEventListener("input", (event) => {
+        const value = event.target.value;
+        const error = validateEmail(value);
+        if (error) {
+            button.disabled = !validateEmail(value);
+            errorValidationEmail.innerHTML = error;
+        }    
     });
     form.append(title);
     form.append(inputLogin);
@@ -64,6 +72,10 @@ function submitFormHandler(event) {
     const password = inputPassword.value;
     const email = inputLogin.value;
     authWithEmailAndPassword(email, password)
+}
+
+function showError(label, text) {
+return label.innerHTML = text;
 }
 
 async function registrWithEmailAndPassword(email, password) {
@@ -92,8 +104,8 @@ async function authWithEmailAndPassword(email, password) {
         window.localStorage.setItem('refreshToken', JSON.stringify(data.user.refreshToken));
         window.localStorage.setItem('idToken', JSON.stringify(data.user.Aa));
         generateTasksPage();
-        tasks = await getTasksListFromDatabase(data.user.uid);
-        fillTasksList(tasks);
+        let tasks = await getTasksListFromDatabase(data.user.uid);
+        generateTasksList(tasks);
     } catch (error) {
         switch (error.code) {
             case 'auth/wrong-password':
@@ -109,45 +121,31 @@ async function authWithEmailAndPassword(email, password) {
     }
 }
 
-function showError(label, text) {
-    label.innerHTML = text;
-}
-
 function validatePassword(value) {
-    const inputPassword = document.getElementById('password');
-    const errorValidationPassword = document.getElementById('errorValidPassword');
      //check empty password field 
-    if (inputPassword.value === "") {
-        return showError(errorValidationPassword, "**Fill the password please!");
+    if (value === "") {
+        return "**Fill the password please!"
     }
     //minimum password length validation  
-    if (inputPassword.value.length < 8) {
-        return showError(errorValidationPassword, "**Password length must be at least 8 characters");
+    if (value.length < 8) {
+        return "**Password length must be at least 8 characters"
     }
     //  8 to 15 characters which contain at least one lowercase letter, one uppercase letter, one numeric digit, and one special character
     let decimal = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[^a-zA-Z0-9])(?!.*\s).{8,15}$/;
-    if (!inputPassword.value.match(decimal)) {
-        return showError(errorValidationPassword, "**Fill the right password please!");
-    } else {
-        showError(errorValidationPassword, "");
-        return value;
-    }
+    if (!value.match(decimal)) {
+        return "**Fill the right password please!"
+    } else return " "   
 }
 
 function validateEmail(value) {
-    const inputLogin = document.getElementById('login');
-    const errorValidationEmail = document.getElementById('errorValidEmail');
     //check empty email field 
-    if (inputLogin.value === "") {
-        return showError(errorValidationEmail, "**Fill the e-mail please!");
+    if (value === "") {
+        return "**Fill the e-mail please!"
     }
-    let mailformat = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/;
-    if (!inputLogin.value.match(mailformat)) {
-        return showError(errorValidationEmail, "**You have entered an invalid email address!");
-    } else {
-        showError(errorValidationEmail, "");
-        return value;
-    }
+    let emailFormat = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/;
+    if (!value.match(emailFormat)) {
+        return "**You have entered an invalid email address!"
+    } else return " "   
 }
 
 function createForm(name) {
@@ -231,7 +229,7 @@ function initializeTasksForm() {
     addTaskBtn.addEventListener('click', submitTaskFromDatabase);
     return container;
 }
-// function to clear local storage and initialize auth form
+// clear local storage and initialize auth form
 function logOut() {
     const rootElement = document.getElementById('root');
     rootElement.remove();
@@ -241,7 +239,7 @@ function logOut() {
     localStorage.clear();
     return newRootElement.append(authForm);
 }
-// function constructor to create many tasks object
+// constructor to create many tasks object
 function Task(title) {
     this.userId = JSON.parse(window.localStorage.getItem('localId'));
     this.dateCreated = Date.now();
@@ -252,13 +250,13 @@ function Task(title) {
 
 async function submitTaskFromDatabase() {
     const deskTaskInput = document.getElementById('input');
-    if (deskTaskInput.value.length == 0) {
+    if (deskTaskInput.value.length === 0) {
         alert("Please enter a task!");
     } else {
         try {
             await addTaskToDatabase(new Task(deskTaskInput.value));
-            tasks = await getTasksListFromDatabase(JSON.parse(localStorage.getItem('localId')))
-            fillTasksList(tasks);
+            let tasks = await getTasksListFromDatabase(JSON.parse(localStorage.getItem('localId')))
+            generateTasksList(tasks);
             deskTaskInput.value = '';
         } catch (error) {
             console.error(error);
@@ -270,7 +268,7 @@ async function addTaskToDatabase(task) {
     try {
         return await firebase.database().ref('ToDo').push(task);
     } catch (error) {
-        console.log(error.message)
+        console.error(error);
     }
 }
 
@@ -278,22 +276,15 @@ async function getTasksListFromDatabase(id) {
     try {
         return await firebase.database().ref('ToDo').get()
             .then(response => response.val())
-            .then(response => {
-                return response ? Object.keys(response).map(key => ({
+            .then(response => response ? Object.keys(response).map(key => ({
                     ...response[key],
                     id: key
                 })) : []
-            })
-            .then(response => {
-                return response.filter(task => {
-                    return task.userId == `${id}`;
+            )
+            .then(response => response.filter(task => {
+                    return (task.userId === id) && (task.status !== 'archived');
                 })     
-            })
-            .then(response => {
-                return response.filter(task => {
-                    return task.status !== 'archived';
-                })
-            })
+            )
             .then(response => {
                 window.localStorage.setItem('tasks', JSON.stringify(response));
                 return response;
@@ -306,7 +297,7 @@ async function getTasksListFromDatabase(id) {
 function createTaskTemplate(task, index) {
     return `
 <div class="task ${task.status ? 'checked' : ''}"> 
-<div id="taskname"> ${task.title} </div>
+<div id="${task.id}"> ${task.title} </div>
 <div class="buttons"> 
 <input onclick = completeTask(${index}) class="btn-complete" type="checkbox" ${task.status ? 'checked' : ''}>
 <button onclick = deleteTask(${index}) class="btn-delete">Delete</button>
@@ -314,41 +305,41 @@ function createTaskTemplate(task, index) {
 </div>
 `;
 }
-// function to display array tasks on a page
-function fillTasksList(tasks) {
+
+function generateTasksList(tasks) {
     document.querySelector('#tasks').innerHTML = "";
     if (tasks.length > 0) {
         tasks.forEach((task, index) => {
             document.querySelector('#tasks').innerHTML += createTaskTemplate(task, index);
         })
-        taskItemElems = document.querySelectorAll('.task') 
     }
 }
 
 async function completeTask(index) {
+    let tasks = getLocalTasks();
     tasks[index].status = !tasks[index].status;
-    console.log(index)
     if (tasks[index].status === true) {
         await firebase.database().ref('ToDo').child(tasks[index].id).update({ dateUpdated: Date.now()})
         await firebase.database().ref('ToDo').child(tasks[index].id).update({ status: true })  
-        taskItemElems[index].classList.add("checked");
-    } else if (tasks[index].status === false) {
+        document.getElementById(`${tasks[index].id}`).classList.add("checked");
+    } else {
         await firebase.database().ref('ToDo').child(tasks[index].id).update({ dateUpdated: Date.now()})
         await firebase.database().ref('ToDo').child(tasks[index].id).update({ status: false })
-        taskItemElems[index].classList.remove("checked");
+        document.getElementById(`${tasks[index].id}`).classList.remove("checked");
     }
-    updateLocal();
-    fillTasksList(tasks);
+    setLocalTasks(tasks);
+    generateTasksList(tasks);
 }
 
 async function deleteTask(index) {
+    let tasks = getLocalTasks();
     tasks[index].disabled = false;
-    taskItemElems[index].classList.add("delition");
+    document.getElementById(`${tasks[index].id}`).classList.add("delition");
     await firebase.database().ref('ToDo').child(tasks[index].id).update({ status: 'archived' })
     await firebase.database().ref('ToDo').child(tasks[index].id).update({ dateUpdated: Date.now()})
     setTimeout(() => {
         tasks.splice(index, 1);
-        updateLocal();
-        fillTasksList(tasks);
+        setLocalTasks(tasks);
+        generateTasksList(tasks);
     }, 500)
 }
